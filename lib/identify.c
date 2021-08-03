@@ -96,7 +96,7 @@ static void perspective_setup(float *c,
 static void perspective_map(const float *c,
 			    float u, float v, struct quirc_point *ret)
 {
-	float den = c[6]*u + c[7]*v + 1.0;
+	float den = c[6]*u + c[7]*v + 1.0f;
 	float x = (c[0]*u + c[1]*v + c[2]) / den;
 	float y = (c[3]*u + c[4]*v + c[5]) / den;
 
@@ -531,13 +531,14 @@ static void finder_scan(struct quirc *q, unsigned int y)
 {
 	quirc_pixel_t *row = q->pixels + y * q->w;
 	unsigned int x;
+        unsigned int w = (unsigned)q->w;
 	int last_color = 0;
 	unsigned int run_length = 0;
 	unsigned int run_count = 0;
 	unsigned int pb[5];
 
 	memset(pb, 0, sizeof(pb));
-	for (x = 0; x < q->w; x++) {
+	for (x = 0; x < w; x++) {
 		int color = row[x] ? 1 : 0;
 
 		if (x && color != last_color) {
@@ -591,9 +592,9 @@ static void find_alignment_pattern(struct quirc *q, int index)
 	 * can estimate its size.
 	 */
 	perspective_unmap(c0->c, &b, &u, &v);
-	perspective_map(c0->c, u, v + 1.0, &a);
+	perspective_map(c0->c, u, v + 1.0f, &a);
 	perspective_unmap(c2->c, &b, &u, &v);
-	perspective_map(c2->c, u + 1.0, v, &c);
+	perspective_map(c2->c, u + 1.0f, v, &c);
 
 	size_estimate = abs((a.x - b.x) * -(c.y - b.y) +
 			    (a.y - b.y) * (c.x - b.x));
@@ -663,16 +664,16 @@ static void measure_grid_size(struct quirc *q, int index)
 	struct quirc_capstone *c = &(q->capstones[qr->caps[2]]);
 
 	float ab = distance(b->corners[0], a->corners[3]);
-	float capstone_ab_size = (distance(b->corners[0], b->corners[3]) + distance(a->corners[0], a->corners[3]))/2.0;
-	float ver_grid = 7.0 * ab / capstone_ab_size;
+	float capstone_ab_size = (distance(b->corners[0], b->corners[3]) + distance(a->corners[0], a->corners[3]))/2.0f;
+	float ver_grid = 7.0f * ab / capstone_ab_size;
 
 	float bc = distance(b->corners[0], c->corners[1]);
-	float capstone_bc_size = (distance(b->corners[0], b->corners[1]) + distance(c->corners[0], c->corners[1]))/2.0;
-	float hor_grid = 7.0 * bc / capstone_bc_size;
+	float capstone_bc_size = (distance(b->corners[0], b->corners[1]) + distance(c->corners[0], c->corners[1]))/2.0f;
+	float hor_grid = 7.0f * bc / capstone_bc_size;
 	
 	float grid_size_estimate = (ver_grid + hor_grid) / 2;
 	
-	qr->grid_size =  4*((int)(grid_size_estimate - 17.0 + 2.0) / 4) + 17;
+	qr->grid_size =  4*((int)(grid_size_estimate - 17.0f + 2.0f) / 4) + 17;
 }
 
 /* Read a cell from a grid using the currently set perspective
@@ -684,7 +685,7 @@ static int read_cell(const struct quirc *q, int index, int x, int y)
 	const struct quirc_grid *qr = &q->grids[index];
 	struct quirc_point p;
 
-	perspective_map(qr->c, x + 0.5, y + 0.5, &p);
+	perspective_map(qr->c, x + 0.5f, y + 0.5f, &p);
 	if (p.y < 0 || p.y >= q->h || p.x < 0 || p.x >= q->w)
 		return 0;
 
@@ -699,7 +700,7 @@ static int fitness_cell(const struct quirc *q, int index, int x, int y)
 
 	for (v = 0; v < 3; v++)
 		for (u = 0; u < 3; u++) {
-			static const float offsets[] = {0.3, 0.5, 0.7};
+			static const float offsets[] = {0.3f, 0.5f, 0.7f};
 			struct quirc_point p;
 
 			perspective_map(qr->c, x + offsets[u],
@@ -806,7 +807,7 @@ static void jiggle_perspective(struct quirc *q, int index)
 	int i;
 
 	for (i = 0; i < 8; i++)
-		adjustments[i] = qr->c[i] * 0.02;
+		adjustments[i] = qr->c[i] * 0.02f;
 
 	for (pass = 0; pass < 5; pass++) {
 		for (i = 0; i < 16; i++) {
@@ -831,7 +832,7 @@ static void jiggle_perspective(struct quirc *q, int index)
 		}
 
 		for (i = 0; i < 8; i++)
-			adjustments[i] *= 0.5;
+			adjustments[i] *= 0.5f;
 	}
 }
 
@@ -1011,8 +1012,8 @@ static void test_neighbours(struct quirc *q, int i,
 		const struct neighbour *hn = &hlist->n[j];
 		for (int k = 0; k < vlist->count; k++) {
 			const struct neighbour *vn = &vlist->n[k];
-			float squareness = fabsf(1.0 - hn->distance / vn->distance);
-			if (squareness < 0.2)
+			float squareness = fabsf(1.0f - hn->distance / vn->distance);
+			if (squareness < 0.2f)
 				record_qr_grid(q, hn->index, i, vn->index);
 		}
 	}
@@ -1035,22 +1036,22 @@ static void test_grouping(struct quirc *q, unsigned int i)
 		struct quirc_capstone *c2 = &q->capstones[j];
 		float u, v;
 
-		if (i == j)
+		if (i == (unsigned)j)
 			continue;
 
 		perspective_unmap(c1->c, &c2->center, &u, &v);
 
-		u = fabsf(u - 3.5);
-		v = fabsf(v - 3.5);
+		u = fabsf(u - 3.5f);
+		v = fabsf(v - 3.5f);
 
-		if (u < 0.2 * v) {
+		if (u < 0.2f * v) {
 			struct neighbour *n = &hlist.n[hlist.count++];
 
 			n->index = j;
 			n->distance = v;
 		}
 
-		if (v < 0.2 * u) {
+		if (v < 0.2f * u) {
 			struct neighbour *n = &vlist.n[vlist.count++];
 
 			n->index = j;
