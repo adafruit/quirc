@@ -126,4 +126,16 @@ struct quirc_version_info {
 
 extern const struct quirc_version_info quirc_version_db[QUIRC_MAX_VERSION + 1];
 
+#ifndef QUIRC_CALLOC
+#define QUIRC_CALLOC(x,y) calloc((x),(y))
+#endif
+
+#ifndef QUIRC_MALLOC
+#define QUIRC_MALLOC(x) malloc((x))
+#endif
+
+#ifndef QUIRC_FREE
+#define QUIRC_FREE(x) free((x))
+#endif
+
 #endif

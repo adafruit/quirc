@@ -25,7 +25,7 @@ const char *quirc_version(void)
 
 struct quirc *quirc_new(void)
 {
-	struct quirc *q = malloc(sizeof(*q));
+	struct quirc *q = QUIRC_MALLOC(sizeof(*q));
 
 	if (!q)
 		return NULL;
@@ -36,13 +36,13 @@ struct quirc *quirc_new(void)
 
 void quirc_destroy(struct quirc *q)
 {
-	free(q->image);
+	QUIRC_FREE(q->image);
 	/* q->pixels may alias q->image when their type representation is of the
-	   same size, so we need to be careful here to avoid a double free */
+	   same size, so we need to be careful here to avoid a double QUIRC_FREE */
 	if (!QUIRC_PIXEL_ALIAS_IMAGE)
-		free(q->pixels);
-	free(q->flood_fill_vars);
-	free(q);
+		QUIRC_FREE(q->pixels);
+	QUIRC_FREE(q->flood_fill_vars);
+	QUIRC_FREE(q);
 }
 
 int quirc_resize(struct quirc *q, int w, int h)
@@ -66,7 +66,7 @@ int quirc_resize(struct quirc *q, int w, int h)
 	 * alloc a new buffer for q->image. We avoid realloc(3) because we want
 	 * on failure to be leave `q` in a consistant, unmodified state.
 	 */
-	image = calloc(w, h);
+	image = QUIRC_CALLOC(w, h);
 	if (!image)
 		goto fail;
 
@@ -85,7 +85,7 @@ int quirc_resize(struct quirc *q, int w, int h)
 
 	/* alloc a new buffer for q->pixels if needed */
 	if (!QUIRC_PIXEL_ALIAS_IMAGE) {
-		pixels = calloc(newdim, sizeof(quirc_pixel_t));
+		pixels = QUIRC_CALLOC(newdim, sizeof(quirc_pixel_t));
 		if (!pixels)
 			goto fail;
 	}
@@ -101,7 +101,7 @@ int quirc_resize(struct quirc *q, int w, int h)
 	 * - the maximum height of rings would be about 1/3 of the image height.
 	 */
 
-	if ((size_t)h * 2 / 2 != h) {
+	if ((size_t)h * 2 / 2 != (size_t)h) {
 		goto fail; /* size_t overflow */
 	}
 	num_vars = (size_t)h * 2 / 3;
@@ -113,29 +113,29 @@ int quirc_resize(struct quirc *q, int w, int h)
 	if (vars_byte_size / sizeof(*vars) != num_vars) {
 		goto fail; /* size_t overflow */
 	}
-	vars = malloc(vars_byte_size);
+	vars = QUIRC_MALLOC(vars_byte_size);
 	if (!vars)
 		goto fail;
 
 	/* alloc succeeded, update `q` with the new size and buffers */
 	q->w = w;
 	q->h = h;
-	free(q->image);
+	QUIRC_FREE(q->image);
 	q->image = image;
 	if (!QUIRC_PIXEL_ALIAS_IMAGE) {
-		free(q->pixels);
+		QUIRC_FREE(q->pixels);
 		q->pixels = pixels;
 	}
-	free(q->flood_fill_vars);
+	QUIRC_FREE(q->flood_fill_vars);
 	q->flood_fill_vars = vars;
 	q->num_flood_fill_vars = num_vars;
 
 	return 0;
 	/* NOTREACHED */
 fail:
-	free(image);
-	free(pixels);
-	free(vars);
+	QUIRC_FREE(image);
+	QUIRC_FREE(pixels);
+	QUIRC_FREE(vars);
 
 	return -1;
 }
