@@ -138,4 +138,8 @@ extern const struct quirc_version_info quirc_version_db[QUIRC_MAX_VERSION + 1];
 #define QUIRC_FREE(x) free((x))
 #endif
 
+#ifndef QUIRC_SMALL_STACK
+#define QUIRC_SMALL_STACK (0)
+#endif
+
 #endif

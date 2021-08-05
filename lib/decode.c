@@ -884,26 +884,42 @@ quirc_decode_error_t quirc_decode(const struct quirc_code *code,
 				  struct quirc_data *data)
 {
 	quirc_decode_error_t err;
-	struct datastream ds;
+#if QUIRC_SMALL_STACK
+        struct datastream *dsp = QUIRC_CALLOC(sizeof(*dsp), 1);
+#define ds (*dsp)
+#else
+	struct datastream ds = {0};
+#endif
 
-	if ((code->size - 17) % 4)
+	if ((code->size - 17) % 4) {
+#if QUIRC_SMALL_STACK
+                QUIRC_FREE(dsp);
+#endif
 		return QUIRC_ERROR_INVALID_GRID_SIZE;
+        }
 
 	memset(data, 0, sizeof(*data));
-	memset(&ds, 0, sizeof(ds));
 
 	data->version = (code->size - 17) / 4;
 
 	if (data->version < 1 ||
-	    data->version > QUIRC_MAX_VERSION)
+	    data->version > QUIRC_MAX_VERSION) {
+#if QUIRC_SMALL_STACK
+                QUIRC_FREE(dsp);
+#endif
 		return QUIRC_ERROR_INVALID_VERSION;
+        }
 
 	/* Read format information -- try both locations */
 	err = read_format(code, data, 0);
 	if (err)
 		err = read_format(code, data, 1);
-	if (err)
+	if (err) {
+#if QUIRC_SMALL_STACK
+                QUIRC_FREE(dsp);
+#endif
 		return err;
+        }
 
 	/*
 	 * Borrow data->payload to store the raw bits.
@@ -923,6 +939,11 @@ quirc_decode_error_t quirc_decode(const struct quirc_code *code,
 	ds.raw = NULL; /* We've done with this buffer. */
 
 	err = decode_payload(data, &ds);
+#if QUIRC_SMALL_STACK
+        QUIRC_FREE(dsp);
+#undef ds
+#endif
+
 	if (err)
 		return err;
 
@@ -931,7 +952,15 @@ quirc_decode_error_t quirc_decode(const struct quirc_code *code,
 
 void quirc_flip(struct quirc_code *code)
 {
+#if QUIRC_SMALL_STACK
+        static struct quirc_code *flipped_p = NULL;
+        if(!flipped_p) {
+            flipped_p = QUIRC_CALLOC(sizeof(*flipped_p), 1);
+        }
+#define flipped (*flipped_p)
+#else
 	struct quirc_code flipped = {0};
+#endif
 	unsigned int offset = 0;
 	for (int y = 0; y < code->size; y++) {
 		for (int x = 0; x < code->size; x++) {
@@ -942,4 +971,8 @@ void quirc_flip(struct quirc_code *code)
 		}
 	}
 	memcpy(&code->cell_bitmap, &flipped.cell_bitmap, sizeof(flipped.cell_bitmap));
+#if QUIRC_SMALL_STACK
+        QUIRC_FREE(flipped_p);
+#undef flipped
+#endif
 }
